@@ -1,0 +1,55 @@
+import os
+import sys
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, BitsAndBytesConfig
+import torch
+import bitsandbytes as bnb
+import pandas as pd
+import random
+import transformers
+
+from huggingface_hub import login   #importing the login function
+from bertviz import model_view      #importing the model_view module
+
+with open('hg.token','r') as ft:     #putting in the huggingfcae token and hidind it  putting it into a file
+        token = ft.read().strip()
+
+login(token=token) #Log into huggingface
+
+
+# Use a pipeline as a high-level helper
+from transformers import pipeline
+
+pipe = pipeline("text-generation", model="ibm/merlinite-7b")
+
+# Load model directly
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+tokenizer = AutoTokenizer.from_pretrained("ibm/merlinite-7b")
+model = AutoModelForCausalLM.from_pretrained("ibm/merlinite-7b") #changed the bnb config and cuda map
+
+#sys_prompt = "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior."
+sys_prompt = """You are an AI language model assigned to generate variation in the target question, Make another question using the same competency measured by the reference question.
+Vary the following properties of the questions:
+1. The numbers
+2. The contextual theme
+3. The amount of signal vs. Noise in the question
+4. The real-world object references made in the question
+
+Avoid doing the following:
+1. Don't change the number's too much
+2. Dont change the core competency and mathematical operations in the question """
+
+input = "generate variations for the target question: Can you create a tessellation (repeating pattern) using only squares or triangles? How about a combination of shapes? "
+
+prompt = f'<|system|>\n{sys_prompt}\n<|user|>\n{input}\n<|assistant|>\n' #changed to input
+stop_token = '<|endoftext|>'
+
+inputs = tokenizer.encode(prompt, return_tensors="pt")                     #converting the input into tensors the model can understand
+ttention_mask = torch.ones_like(inputs) #changed .to('cuda')                                  #giving the input 1s indicating the should e attended  te attention layer
+attention_mask = attention_mask #Line added 25/10/24            #running the attention mask on GPU
+inputs = inputs #Line added 25/10/24 #changed cuda                           #running the inputs also on GPU
+output = model.generate(inputs=inputs, attention_mask=attention_mask, max_new_tokens = 250, do_sample = True) #asking model to generate text based on the input
+generated_text = tokenizer.decode(output[0], skip_special_tokens=True)    #converting the tokens ack into readale form
+
+print(generated_text)
++
